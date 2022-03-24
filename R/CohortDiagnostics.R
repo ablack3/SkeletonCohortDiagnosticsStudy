@@ -55,68 +55,109 @@
 execute <- function(connectionDetails,
                     cdmDatabaseSchema,
                     vocabularyDatabaseSchema = cdmDatabaseSchema,
-                    cohortDatabaseSchema = cdmDatabaseSchema, cohortTable = "cohort", tempEmulationSchema = getOption("sqlRenderTempEmulationSchema"),
-                    verifyDependencies = TRUE, outputFolder, incrementalFolder = file.path(
-                      outputFolder,
-                      "incrementalFolder"
-                    ),
-                    databaseId = "Unknown", databaseName = databaseId, databaseDescription = databaseId) {
+                    cohortDatabaseSchema = cdmDatabaseSchema,
+                    cohortTable = "cohort",
+                    tempEmulationSchema = getOption("sqlRenderTempEmulationSchema"),
+                    verifyDependencies = TRUE,
+                    outputFolder,
+                    incrementalFolder = file.path(outputFolder,
+                                                  "incrementalFolder"),
+                    databaseId = "Unknown",
+                    databaseName = databaseId,
+                    databaseDescription = databaseId) {
   if (!file.exists(outputFolder)) {
     dir.create(outputFolder, recursive = TRUE)
   }
-
+  
   ParallelLogger::addDefaultFileLogger(file.path(outputFolder, "log.txt"))
   ParallelLogger::addDefaultErrorReportLogger(file.path(outputFolder, "errorReportR.txt"))
   on.exit(ParallelLogger::unregisterLogger("DEFAULT_FILE_LOGGER", silent = TRUE))
-  on.exit(ParallelLogger::unregisterLogger("DEFAULT_ERRORREPORT_LOGGER", silent = TRUE), add = TRUE)
-
+  on.exit(
+    ParallelLogger::unregisterLogger("DEFAULT_ERRORREPORT_LOGGER", silent = TRUE),
+    add = TRUE
+  )
+  
   if (verifyDependencies) {
     ParallelLogger::logInfo("Checking whether correct package versions are installed")
     verifyDependencies()
   }
-
+  
   ParallelLogger::logInfo("Creating cohorts")
-
-  cohortTableNames <- CohortGenerator::getCohortTableNames(cohortTable = cohortTable)
-
+  
+  cohortTableNames <-
+    CohortGenerator::getCohortTableNames(cohortTable = cohortTable)
+  
   # Next create the tables on the database
   CohortGenerator::createCohortTables(
     connectionDetails = connectionDetails,
     cohortTableNames = cohortTableNames,
-    cohortDatabaseSchema = cohortDatabaseSchema, incremental = TRUE
+    cohortDatabaseSchema = cohortDatabaseSchema,
+    incremental = TRUE
   )
-
+  
   # get cohort definitions from study package
-  cohortDefinitionSet <- dplyr::tibble(CohortGenerator::getCohortDefinitionSet(
-    settingsFileName = "settings/CohortsToCreate.csv",
-    jsonFolder = "cohorts", sqlFolder = "sql/sql_server", packageName = "SkeletonCohortDiagnosticsStudy",
-    cohortFileNameValue = "cohortId"
-  ))
-
+  cohortDefinitionSet <-
+    dplyr::tibble(
+      CohortGenerator::getCohortDefinitionSet(
+        settingsFileName = "settings/CohortsToCreate.csv",
+        jsonFolder = "cohorts",
+        sqlFolder = "sql/sql_server",
+        packageName = "SkeletonCohortDiagnosticsStudy",
+        cohortFileNameValue = "cohortId"
+      )
+    )
+  
   # Generate the cohort set
   CohortGenerator::generateCohortSet(
     connectionDetails = connectionDetails,
     cdmDatabaseSchema = cdmDatabaseSchema,
-    cohortDatabaseSchema = cohortDatabaseSchema, cohortTableNames = cohortTableNames, cohortDefinitionSet = cohortDefinitionSet,
-    incrementalFolder = incrementalFolder, incremental = TRUE
+    cohortDatabaseSchema = cohortDatabaseSchema,
+    cohortTableNames = cohortTableNames,
+    cohortDefinitionSet = cohortDefinitionSet,
+    incrementalFolder = incrementalFolder,
+    incremental = TRUE
   )
-
+  
   # export stats table to local CohortGenerator::exportCohortStatsTables( connectionDetails =
   # connectionDetails, connection = NULL, cohortDatabaseSchema = cohortDatabaseSchema,
   # cohortTableNames = cohortTableNames, cohortStatisticsFolder = outputFolder, incremental = TRUE
   # )
-
+  
   # run cohort diagnostics
   CohortDiagnostics::executeDiagnostics(
     cohortDefinitionSet = cohortDefinitionSet,
     exportFolder = outputFolder,
-    databaseId = databaseId, connectionDetails = connectionDetails, connection = NULL, cdmDatabaseSchema = cdmDatabaseSchema,
-    tempEmulationSchema = tempEmulationSchema, cohortDatabaseSchema = cohortDatabaseSchema, cohortTable = cohortTable,
-    cohortTableNames = cohortTableNames, vocabularyDatabaseSchema = vocabularyDatabaseSchema, cohortIds = NULL,
-    databaseName = databaseName, databaseDescription = databaseDescription, cdmVersion = 5, minCellCount = 5,
-    incremental = TRUE, incrementalFolder = incrementalFolder
+    databaseId = databaseId,
+    connectionDetails = connectionDetails,
+    connection = NULL,
+    cdmDatabaseSchema = cdmDatabaseSchema,
+    tempEmulationSchema = tempEmulationSchema,
+    cohortDatabaseSchema = cohortDatabaseSchema,
+    cohortTable = cohortTable,
+    cohortTableNames = cohortTableNames,
+    vocabularyDatabaseSchema = vocabularyDatabaseSchema,
+    cohortIds = NULL,
+    databaseName = databaseName,
+    databaseDescription = databaseDescription,
+    cdmVersion = 5,
+    minCellCount = 5,
+    incremental = TRUE,
+    incrementalFolder = incrementalFolder,
+    runInclusionStatistics = TRUE,
+    runIncludedSourceConcepts = TRUE,
+    runOrphanConcepts = TRUE,
+    runTimeDistributions = TRUE,
+    runTimeSeries = TRUE,
+    runVisitContext = TRUE,
+    runBreakdownIndexEvents = TRUE,
+    runIncidenceRate = TRUE,
+    runCohortOverlap = TRUE,
+    runCohortRelationship = TRUE,
+    runCohortCharacterization = TRUE,
+    covariateSettings = createDefaultCovariateSettings(),
+    runTemporalCohortCharacterization = TRUE,
   )
-
+  
   # drop cohort stats table CohortGenerator::dropCohortStatsTables( connectionDetails =
   # connectionDetails, cohortDatabaseSchema = cohortDatabaseSchema, cohortTableNames =
   # cohortTableNames, connection = NULL )
